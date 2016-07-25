@@ -56,7 +56,7 @@ proc check(err: Error) {.raises: [Database_error].} =
 #--------------------------------------------------------------------------
 # system
 
-proc version*(): (int, int, int, string) {.inline.} =
+proc version*(): (int, int, int, string) =
     var major, minor, patch: cint
     let verstr = mdb_version(major, minor, patch)
     (major.int, minor.int, patch.int, $verstr)
