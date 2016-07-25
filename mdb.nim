@@ -137,25 +137,28 @@ template transaction*(env: Environment; txn, body: untyped): untyped =
 
 when is_main_module:
     let t: tuple[major, minor, patch: int; str: string] = version()
-    echo t.str
-    echo t.major
-    echo t.minor
-    echo t.patch
+    echo "version", $t
+    echo()
+
     let db = open "./test"
-    echo GC_get_statistics()
+    echo "DB OPENED ", db
+    echo()
 
     try:
         transaction db, txn:
             raise new_exception(Exception, "should have aborted")
     except:
         echo get_current_exception_msg()
-
     echo()
 
     block TEST:
         transaction db, txn:
             echo "should commit"
             break TEST
+    echo()
 
     db.close
+    echo "DB CLOSED ", db
+    echo()
+    echo GC_get_statistics()
 
