@@ -113,7 +113,7 @@ proc commit*(txn: Transaction) = mdb_txn_commit(txn)
 proc abort*(txn: Transaction) = mdb_txn_abort(txn)
 
 template transaction_scope_guard(txn, body: untyped): untyped =
-    when debug: echo "TXN ", "BEGAN".align(8), " ", txn
+    when debug: echo "[TXN] ", "began".align(8), " ", txn
 
     var failed = false
     try:
@@ -124,10 +124,10 @@ template transaction_scope_guard(txn, body: untyped): untyped =
     finally:
         if failed:
             abort(txn)
-            when debug: echo "TXN ", "ABORTED".align(8), " ", txn
+            when debug: echo "[TXN] ", "aborted".align(8), " ", txn
         else:
             commit(txn)
-            when debug: echo "TXN ", "COMMITED".align(8), " ", txn
+            when debug: echo "[TXN] ", "commited".align(8), " ", txn
 
 template transaction*(env: Environment; txn, body: untyped): untyped =
     let txn = begin(env)
@@ -137,11 +137,10 @@ template transaction*(env: Environment; txn, body: untyped): untyped =
 # example
 
 when is_main_module:
-    echo "VERSION ", version()
-    echo()
+    echo "[DB] version ", version()
 
     let db = open "./test"
-    echo "DB OPENED ", db
+    echo "[DB] opened ", db
     echo()
 
     try:
@@ -158,7 +157,7 @@ when is_main_module:
     echo()
 
     db.close
-    echo "DB CLOSED ", db
+    echo "[DB] closed ", db
     echo()
     echo GC_get_statistics()
 
