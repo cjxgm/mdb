@@ -89,6 +89,10 @@ proc mdb_dbi_open(txn: Transaction, name: cstring, flags: cuint, db: var Databas
 proc check(err: Error) {.raises: [Database_error].} =
     if err: raise Database_error.new_exception($mdb_strerror(err))
 
+template convert_with_nil[T](src_in: typed): T =
+    let src = src_in
+    if is_nil(src): T(nil) else: T(src)
+
 #--------------------------------------------------------------------------
 # system
 
@@ -152,8 +156,8 @@ template transaction*(env: Environment; txn, body: untyped): untyped =
 # database
 
 proc open*(txn: Transaction, name: string, flags: Database_flags_set): Database =
-    let name_or_nil = if name.is_nil: nil.cstring else: name.cstring
-    mdb_dbi_open(txn, name_or_nil, flags, result).check
+    let cname = convert_with_nil[cstring](name)
+    mdb_dbi_open(txn, cname, flags, result).check
 
 proc open*(txn: Transaction): Database =
     open(txn, nil, {})
