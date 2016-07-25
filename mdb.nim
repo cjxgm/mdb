@@ -30,11 +30,21 @@ bitmask Environment_flags_set, Environment_flags, cuint:
 bitmask Transaction_flags_set, Transaction_flags, cuint:
     rd_only      = 0x00_02_00_00
 
+bitmask Database_flags_set, Database_flags, cuint:
+    reverse_key  = 0x00_00_00_02
+    dup_sort     = 0x00_00_00_04
+    integer_key  = 0x00_00_00_08
+    dup_fixed    = 0x00_00_00_10
+    integer_dup  = 0x00_00_00_20
+    reverse_dup  = 0x00_00_00_40
+    create       = 0x00_04_00_00
+
 type Mode = distinct posix.Mode
 converter degrade_mode(mode: Mode): auto = posix.Mode(mode)
 
 type MDB_env {.importc, pure, final, incompletestruct.} = object
 type MDB_txn {.importc, pure, final, incompletestruct.} = object
+type MDB_dbi {.importc, pure.} = distinct cuint
 type Error = distinct cint
 converter is_error(err: Error): bool = err.cint != 0
 
@@ -43,8 +53,10 @@ converter is_error(err: Error): bool = err.cint != 0
 
 type Environment* = ptr MDB_env
 type Transaction* = ptr MDB_txn
-type Database_error* = object of Exception
+type Database* = MDB_dbi
+
 type Version* = tuple[major, minor, patch: int; str: string]
+type Database_error* = object of Exception
 
 #--------------------------------------------------------------------------
 # C API
@@ -66,6 +78,9 @@ proc mdb_txn_begin(env: Environment, parent: Transaction, flags: cuint, txn: var
 proc mdb_txn_commit(txn: Transaction)
     {.importc, header: LMDB.}
 proc mdb_txn_abort(txn: Transaction)
+    {.importc, header: LMDB.}
+
+proc mdb_dbi_open(txn: Transaction, name: cstring, flags: cuint, db: var Database)
     {.importc, header: LMDB.}
 
 #--------------------------------------------------------------------------
@@ -134,6 +149,16 @@ template transaction*(env: Environment; txn, body: untyped): untyped =
     transaction_scope_guard(txn, body)
 
 #--------------------------------------------------------------------------
+# database
+
+proc open*(txn: Transaction, name: string, flags: Database_flags_set): Database =
+    let name_or_nil = if name.is_nil: nil.cstring else: name.cstring
+    mdb_dbi_open(txn, name_or_nil, flags, result)
+
+proc open*(txn: Transaction): Database =
+    open(txn, nil, {})
+
+#--------------------------------------------------------------------------
 # example
 
 when is_main_module:
@@ -145,6 +170,8 @@ when is_main_module:
 
     try:
         transaction db, txn:
+            let i = txn.open
+            echo "dbi = ", i.int
             raise new_exception(Exception, "should have aborted")
     except:
         echo get_current_exception_msg()
@@ -152,7 +179,8 @@ when is_main_module:
 
     block TEST:
         transaction db, txn:
-            echo "should commit"
+            let i = txn.open
+            echo "should commit, dbi = ", i.int
             break TEST
     echo()
 
