@@ -44,6 +44,7 @@ converter is_error(err: Error): bool = err.cint != 0
 type Environment* = ptr MDB_env
 type Transaction* = ptr MDB_txn
 type Database_error* = object of Exception
+type Version* = tuple[major, minor, patch: int; str: string]
 
 #--------------------------------------------------------------------------
 # C API
@@ -76,7 +77,7 @@ proc check(err: Error) {.raises: [Database_error].} =
 #--------------------------------------------------------------------------
 # system
 
-proc version*(): (int, int, int, string) =
+proc version*(): Version =
     var major, minor, patch: cint
     let verstr = mdb_version(major, minor, patch)
     (major.int, minor.int, patch.int, $verstr)
@@ -136,8 +137,7 @@ template transaction*(env: Environment; txn, body: untyped): untyped =
 # example
 
 when is_main_module:
-    let t: tuple[major, minor, patch: int; str: string] = version()
-    echo "version", $t
+    echo "VERSION ", version()
     echo()
 
     let db = open "./test"
