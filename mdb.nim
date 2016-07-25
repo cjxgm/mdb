@@ -73,14 +73,14 @@ proc mdb_env_open(env: Environment, path: cstring, flags: cuint, mode: Mode): Er
 proc mdb_env_close(env: Environment)
     {.importc, header: LMDB.}
 
-proc mdb_txn_begin(env: Environment, parent: Transaction, flags: cuint, txn: var Transaction)
+proc mdb_txn_begin(env: Environment, parent: Transaction, flags: cuint, txn: var Transaction): Error
     {.importc, header: LMDB.}
-proc mdb_txn_commit(txn: Transaction)
+proc mdb_txn_commit(txn: Transaction): Error
     {.importc, header: LMDB.}
 proc mdb_txn_abort(txn: Transaction)
     {.importc, header: LMDB.}
 
-proc mdb_dbi_open(txn: Transaction, name: cstring, flags: cuint, db: var Database)
+proc mdb_dbi_open(txn: Transaction, name: cstring, flags: cuint, db: var Database): Error
     {.importc, header: LMDB.}
 
 #--------------------------------------------------------------------------
@@ -117,14 +117,14 @@ proc close*(env: Environment) =
 # transaction
 
 proc begin*(env: Environment, flags: Transaction_flags_set, parent: Transaction = nil): Transaction =
-    mdb_txn_begin(env, parent, flags, result)
+    mdb_txn_begin(env, parent, flags, result).check
 
 proc begin*(env: Environment, read_only = false, parent: Transaction = nil): Transaction =
     var flags = {}.Transaction_flags_set
     if read_only: flags.incl Transaction_flags.rd_only
     begin(env, flags, parent)
 
-proc commit*(txn: Transaction) = mdb_txn_commit(txn)
+proc commit*(txn: Transaction) = mdb_txn_commit(txn).check
 proc abort*(txn: Transaction) = mdb_txn_abort(txn)
 
 template transaction_scope_guard(txn, body: untyped): untyped =
@@ -153,7 +153,7 @@ template transaction*(env: Environment; txn, body: untyped): untyped =
 
 proc open*(txn: Transaction, name: string, flags: Database_flags_set): Database =
     let name_or_nil = if name.is_nil: nil.cstring else: name.cstring
-    mdb_dbi_open(txn, name_or_nil, flags, result)
+    mdb_dbi_open(txn, name_or_nil, flags, result).check
 
 proc open*(txn: Transaction): Database =
     open(txn, nil, {})
